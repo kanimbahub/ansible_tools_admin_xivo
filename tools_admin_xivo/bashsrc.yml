@@ -1,0 +1,11 @@
+---
+- name: atop
+  hosts: all
+  remote_user: root
+  tasks:
+  - name: Modifier Bashsrc
+    lineinfile:
+      dest: /usr/share/atop/atop.daily
+      regexp: '^LOGINTERVAL'
+      line: 'LOGINTERVAL=60'
+      state: present

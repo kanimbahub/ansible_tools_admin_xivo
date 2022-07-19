@@ -1,0 +1,92 @@
+---
+- name: mon premier playbook
+  hosts: all
+  remote_user: root
+  tasks:
+  - name: generate SSH key"
+    openssh_keypair:
+      path: /root/mkt/kani
+      type: rsa
+      size: 4096
+      state: present
+      force: no
+    run_once: yes
+    delegate_to: localhost
+
+  - name: creation de utilisateur admin
+    user:
+      name: admin
+      shell: /bin/bash
+      groups: sudo
+      append: yes
+      password: "{{ 'superpass' | password_hash('sha512') }}"
+    become: yes
+
+  - name: Ajout de l utilisateur admin au group sudoers
+    copy:
+      dest: "/etc/sudoers.d/admin"
+      content: "admin  ALL=(ALL)  NOPASSWD: ALL"
+    become: yes
+
+  - name: Deploiement de la cle ssh pour l utilisateur admin
+    authorized_key:
+      user: admin
+      key: "{{ lookup('file', '/root/mkt/kani.pub') }}"
+      state: present
+      manage_dir: yes
+    become: yes
+      
+  - name: "Remot cle ssh"
+    authorized_key:
+      user: root
+      state: present
+      manage_dir: yes
+      key: "{{ lookup('file', '/root/mkt/kani.pub') }}"
+
+  - name: "Disable Root login"
+    authorized_key:
+      user: root
+      state: present
+      manage_dir: yes
+      key: "{{ lookup('file', '/root/mkt/kani.pub') }}"
+
+  - name: Disable SSH password authentication
+    lineinfile:
+      dest: /etc/ssh/sshd_config
+      regexp: '^#?\s*PasswordAuthentication\s'
+      line: 'PasswordAuthentication no'
+      state: present
+
+  - name: Enable Root Login
+    lineinfile:
+      dest: /etc/ssh/sshd_config
+      regexp: '^PermitRootLogin'
+      line: "PermitRootLogin prohibit-password"
+      state: present
+      backup: yes
+    notify:
+      - restart ssh
+
+  handlers:
+    - name: restart ssh
+      service:
+        name: sshd
+        state: restarted
+
+
+- name: package
+  hosts: all
+  remote_user: root
+  tasks:
+  - name: Installing Packages
+    package:
+      name: "{{ item }}"
+      state: present
+    with_items:
+      - htop
+      - curl
+      - atop
+      - sngrep
+      - vim
+      - tcpdump
+          
